@@ -22,16 +22,13 @@ public class GitIgnoreParser {
 
     public boolean matchesPattern(Path file, String pattern) {
         String filename = file.getFileName().toString();
-        String relativePath = file.toString(); // Упрощенная реализация
+        String relativePath = file.toString();
 
         if (pattern.startsWith("/")) {
-            // Абсолютный путь от корня репозитория
             return relativePath.endsWith(pattern.substring(1));
         } else if (pattern.contains("/")) {
-            // Относительный путь
             return relativePath.contains(pattern);
         } else {
-            // Просто имя файла
             return filename.equals(pattern) || matchesWildcard(filename, pattern);
         }
     }

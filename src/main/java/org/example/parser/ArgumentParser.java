@@ -10,7 +10,7 @@ import java.util.Set;
 public class ArgumentParser {
 
     public AppConfig parse(String[] args) {
-        AppConfig.Builder builder = new AppConfig.Builder();
+        AppConfig.AppConfigBuilder builder = AppConfig.builder();
 
         for (String arg : args) {
             if (arg.startsWith("--")) {
@@ -20,10 +20,12 @@ public class ArgumentParser {
             }
         }
 
-        return builder.build();
+        AppConfig config = builder.build();
+        config.validate();
+        return config;
     }
 
-    private void parseOption(String arg, AppConfig.Builder builder) {
+    private void parseOption(String arg, AppConfig.AppConfigBuilder builder) {
         if (arg.equals("--recursive")) {
             builder.recursive(true);
         } else if (arg.equals("--git-ignore")) {
@@ -40,7 +42,7 @@ public class ArgumentParser {
             }
         } else if (arg.startsWith("--include-ext=")) {
             String value = extractValue(arg);
-            builder.includeExtensions(parseExtensions(value)); // parseExtensions уже handles empty
+            builder.includeExtensions(parseExtensions(value));
         } else if (arg.startsWith("--exclude-ext=")) {
             String value = extractValue(arg);
             builder.excludeExtensions(parseExtensions(value));

@@ -14,6 +14,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
 
 
 public class FileWalker {
@@ -30,16 +31,20 @@ public class FileWalker {
     public ConcurrentMap<String, FileStats> walk() throws IOException, InterruptedException {
         ExecutorService executor = Executors.newFixedThreadPool(config.getThreadCount());
 
-        try {
-            List<Path> filesToProcess = Files.walk(config.getPath(), getMaxDepth())
+        try (Stream<Path> pathStream = Files.walk(config.getPath(), getMaxDepth())) {
+
+            long fileCount = pathStream
                     .filter(Files::isRegularFile)
                     .filter(this::shouldProcessFile)
-                    .toList();
+                    .count();
 
-            System.out.println("Found " + filesToProcess.size() + " files to process");
+            System.out.println("Found " + fileCount + " files to process");
 
-            for (Path file : filesToProcess) {
-                executor.submit(() -> fileProcessor.processFile(file));
+            try (Stream<Path> processingStream = Files.walk(config.getPath(), getMaxDepth())) {
+                processingStream
+                        .filter(Files::isRegularFile)
+                        .filter(this::shouldProcessFile)
+                        .forEach(file -> executor.submit(() -> fileProcessor.processFile(file)));
             }
 
             executor.shutdown();
@@ -47,13 +52,8 @@ public class FileWalker {
                 throw new RuntimeException("Timeout waiting for file processing");
             }
             return fileProcessor.getStats();
-        } finally {
-            if (executor != null && !executor.isShutdown()) {
-                executor.shutdownNow();
-            }
         }
     }
-
     private int getMaxDepth() {
         if (!config.isRecursive()) return 1;
         return config.getMaxDepth() > 0 ? config.getMaxDepth() : Integer.MAX_VALUE;
@@ -86,7 +86,6 @@ public class FileWalker {
         String filename = file.getFileName().toString();
         String extension = FileUtils.getFileExtension(filename);
 
-        // Список бинарных расширений
         List<String> binaryExtensions = List.of(
                 "class", "jar", "bin", "lock", "exe", "dll", "so", "dylib",
                 "png", "jpg", "jpeg", "gif", "bmp", "ico", "svg",
